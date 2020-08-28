@@ -15,6 +15,18 @@
   var collectSats = {};
   var lastSeenSat = {};
 
+  var SAT_TYPES = {
+    GP: "GPS",
+    GL: "GLONAS",
+    GA: "GALILEO",
+    SB: "SBAS",
+    QZ: "QZSS",
+    GQ: "QZSS",
+    GB: "BDS",
+    IR: "IRNSS",
+    GI: "IRNSS",
+  }
+
   function updateState(state, data) {
 
     // TODO: can we really use RMC time here or is it the time of fix?
@@ -22,6 +34,8 @@
       state['time'] = data['time'];
       state['lat'] = data['lat'];
       state['lon'] = data['lon'];
+      state['lat2'] = data['lat2'];
+      state['lon2'] = data['lon2'];
     }
 
     if (data['type'] === 'ZDA') {
@@ -30,12 +44,20 @@
 
     if (data['type'] === 'GGA') {
       state['alt'] = data['alt'];
+      state['quality'] = data['quality'];
+      state['satellites'] = data['satellites'];
+      state['hdop'] = data['hdop'];
+      state['geoidal'] = data['geoidal'];
+      state['age'] = data['age'];
+      state['stationID'] = data['stationID'];
     }
 
-    if (data['type'] === 'RMC'/* || data['type'] === 'VTG'*/) {
+    if (data['type'] === 'RMC' || data['type'] === 'VTG') {
       // TODO: is rmc speed/track really interchangeable with vtg speed/track?
       state['speed'] = data['speed'];
       state['track'] = data['track'];
+      state['trackMagnetic'] = data['trackMagnetic'];
+      state['faa'] = data['faa'];
     }
 
     if (data['type'] === 'GSA') {
@@ -47,22 +69,10 @@
     }
 
     if (data['type'] === 'GSV') {
-
-      var now = new Date().getTime();
-
       var sats = data['satellites'];
-      for (var i = 0; i < sats.length; i++) {
-        var prn = sats[i].prn;
-        lastSeenSat[prn] = now;
-        collectSats[prn] = sats[i];
+      for (var i = 0; i < sats.length; i++) {        
+        state['sats'].push(sats[i]);
       }
-
-      var ret = [];
-      for (var prn in collectSats) {
-        if (now - lastSeenSat[prn] < 3000) // Sats are visible for 3 seconds
-          ret.push(collectSats[prn])
-      }
-      state['satsVisible'] = ret;
     }
   }
 
@@ -146,6 +156,42 @@
      */
     return sgn * (parseFloat(coord.slice(0, n)) + parseFloat(coord.slice(n)) / 60);
   }
+
+  function parseCoord2(coord, dir) {
+
+    // Latitude can go from 0 to 90; longitude can go from -180 to 180.
+
+    if (coord === '')
+      return null;
+
+    var n, sgn = 1;
+
+    switch (dir) {
+
+      case 'S':
+        sgn = -1;
+      case 'N':
+        n = 2;
+        break;
+
+      case 'W':
+        sgn = -1;
+      case 'E':
+        n = 3;
+        break;
+    }
+    /*
+     * Mathematically, but more expensive and not numerical stable:
+     *
+     * raw = 4807.038
+     * deg = Math.floor(raw / 100)
+     *
+     * dec = (raw - (100 * deg)) / 60
+     * res = deg + dec // 48.1173
+     */
+    return `${coord.slice(0, n)}°${coord.slice(n, n + 2)}'${parseFloat(coord.slice(n + 2)) * 60.0}" ${dir}`
+  }
+
 
   function parseNumber(num) {
 
@@ -347,6 +393,8 @@
         'time': parseTime(gga[1]),
         'lat': parseCoord(gga[2], gga[3]),
         'lon': parseCoord(gga[4], gga[5]),
+        'lat2': parseCoord2(gga[2], gga[3]),
+        'lon2': parseCoord2(gga[4], gga[5]),
         'alt': parseDist(gga[9], gga[10]),
         'quality': parseGGAFix(gga[6]),
         'satellites': parseNumber(gga[7]),
@@ -433,6 +481,8 @@
         'status': parseRMC_GLLStatus(rmc[2]),
         'lat': parseCoord(rmc[3], rmc[4]),
         'lon': parseCoord(rmc[5], rmc[6]),
+        'lat2': parseCoord2(rmc[3], rmc[4]),
+        'lon2': parseCoord2(rmc[5], rmc[6]),
         'speed': parseKnots(rmc[7]),
         'track': parseNumber(rmc[8]), // heading
         'variation': parseRMCVariation(rmc[10], rmc[11]),
@@ -532,7 +582,8 @@
           'elevation': parseNumber(gsv[i + 1]),
           'azimuth': parseNumber(gsv[i + 2]),
           'snr': snr,
-          'status': prn !== null ? (snr !== null ? 'tracking' : 'in view') : null
+          'status': prn !== null ? (snr !== null ? 'tracking' : 'in view') : null,
+          'type': SAT_TYPES[str.substring(1, 3)] || 'OTHER'
         });
       }
 
@@ -573,6 +624,8 @@
         'status': parseRMC_GLLStatus(gll[6]),
         'lat': parseCoord(gll[1], gll[2]),
         'lon': parseCoord(gll[3], gll[4]),
+        'lat2': parseCoord2(gll[1], gll[2]),
+        'lon2': parseCoord2(gll[3], gll[4]),
         'faa': gll.length === 9 ? parseFAA(gll[7]) : null
       };
     },
@@ -716,6 +769,8 @@
         'time': parseTime(gns[1]),
         'lat': parseCoord(gns[2], gns[3]),
         'lon': parseCoord(gns[4], gns[5]),
+        'lat2': parseCoord2(gns[2], gns[3]),
+        'lon2': parseCoord2(gns[4], gns[5]),
         'mode': gns[6],
         'satsUsed': parseNumber(gns[7]),
         'hdop': parseNumber(gns[8]),
@@ -836,6 +891,10 @@
     if (parsed === false) {
       this['state']['errors']++;
       return false;
+    }
+    
+    if (!this.state['sats']) {
+      this.state['sats'] = []
     }
 
     updateState(this['state'], parsed);
