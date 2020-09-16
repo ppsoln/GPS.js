@@ -69,10 +69,23 @@
     }
 
     if (data['type'] === 'GSV') {
+      var now = new Date().getTime();
+
       var sats = data['satellites'];
-      for (var i = 0; i < sats.length; i++) {        
-        state['sats'].push(sats[i]);
+      for (var i = 0; i < sats.length; i++) {
+        if(sats[i].prn){
+          var prnType = sats[i].prn + sats[i].type;
+          lastSeenSat[prnType] = now;
+          collectSats[prnType] = sats[i];
+        }
       }
+
+      var ret = [];
+      for (var prnType in collectSats) {
+        if (now - lastSeenSat[prnType] < 3000) // Sats are visible for 3 seconds
+          ret.push(collectSats[prnType]);
+      }
+      state['sats'] = ret;
     }
   }
 
