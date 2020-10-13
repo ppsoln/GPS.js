@@ -244,15 +244,15 @@
       case 0:
         return null;
       case 1:
-        return 'fix'; // valid SPS fix
+        return 'standalone'; // valid SPS fix
       case 2:
-        return 'dgps-fix'; // valid DGPS fix
+        return 'dgps'; // valid DGPS fix
       case 3:
         return 'pps-fix'; // valid PPS fix
       case 4:
-        return 'rtk'; // valid (real time kinematic) RTK fix
+        return 'fix'; // valid (real time kinematic) RTK fix
       case 5:
-        return 'rtk-float'; // valid (real time kinematic) RTK float
+        return 'float'; // valid (real time kinematic) RTK float
       case 6:
         return 'estimated'; // dead reckoning
       case 7:
