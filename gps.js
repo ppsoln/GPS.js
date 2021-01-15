@@ -17,12 +17,12 @@
 
   var SAT_TYPES = {
     GP: "GPS",
-    GL: "GLONAS",
-    GA: "GALILEO",
+    GL: "GLONASS",
+    GA: "Galileo",
     SB: "SBAS",
     QZ: "QZSS",
     GQ: "QZSS",
-    GB: "BDS",
+    GB: "BeiDou",
     IR: "IRNSS",
     GI: "IRNSS",
   }
