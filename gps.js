@@ -202,7 +202,7 @@
      * dec = (raw - (100 * deg)) / 60
      * res = deg + dec // 48.1173
      */
-    return `${coord.slice(0, n)}°${coord.slice(n, n + 2)}'${parseFloat(coord.slice(n + 2)) * 60.0}" ${dir}`
+    return `${coord.slice(0, n)}°${coord.slice(n, n + 2)}'${(parseFloat(coord.slice(n + 2)) * 60.0).toFixed(4)}" ${dir}`
   }
 
 
