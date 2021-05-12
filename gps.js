@@ -95,6 +95,9 @@
    * @param {String=} date
    * @returns {Date}
    */
+  var year;
+  var month;
+  var day;
   function parseTime(time, date) {
 
     if (time === '') {
@@ -102,21 +105,19 @@
     }
 
     var ret = new Date;
+    if (date) {     
+      year = date.slice(4);      
+      month = date.slice(2, 4) - 1; 
+      day = date.slice(0, 2);            
+    }
 
-    if (date) {
-
-      var year = date.slice(4);
-      var month = date.slice(2, 4) - 1;
-      var day = date.slice(0, 2);
-
-      if (year.length === 4) {
-        ret.setUTCFullYear(Number(year), Number(month), Number(day));
-      } else {
-        // If we need to parse older GPRMC data, we should hack something like
-        // year < 73 ? 2000+year : 1900+year
-        // Since GPS appeared in 1973
-        ret.setUTCFullYear(Number('20' + year), Number(month), Number(day));
-      }
+    if (year.length === 4) {
+      ret.setUTCFullYear(Number(year), Number(month), Number(day));
+    } else {        
+      // If we need to parse older GPRMC data, we should hack something like
+      // year < 73 ? 2000+year : 1900+year
+      // Since GPS appeared in 1973        
+      ret.setUTCFullYear(Number('20' + year), Number(month), Number(day));      
     }
 
     ret.setUTCHours(Number(time.slice(0, 2)));
